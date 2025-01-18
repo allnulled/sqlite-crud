@@ -1,14 +1,14 @@
 {
-  "name": "sqlite-rest",
+  "name": "@allnulled/sqlite-crud",
   "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "description": "Wrapper de better-sqlite3 con operaciones típicas de datos y esquema.",
+  "main": "sqlite-crud.js",
   "scripts": {
     "test": "npx mocha --bail test.js"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": ["sqlite", "sql", "crud", "better-sqlite3", "sqlite3"],
+  "author": "allnulled",
+  "license": "WTFPL",
   "dependencies": {
     "better-sqlite3": "^11.8.1"
   },
