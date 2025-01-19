@@ -1,10 +1,12 @@
 let chai;
-let SqliteRest, sqliteRest;
+let SqliteRest, sqliteCrud;
 
 const resetDatabaseFile = async function() {
   require("fs").unlinkSync(__dirname + "/test.sqlite");
   require("fs").writeFileSync(__dirname + "/test.sqlite", "", "utf8");
 };
+
+const commonMemory = {};
 
 describe("SqliteRest API Test", function() {
 
@@ -14,53 +16,85 @@ describe("SqliteRest API Test", function() {
 
   before(resetDatabaseFile);
   
-  after(resetDatabaseFile);
+  // after(resetDatabaseFile);
   
   it("can load the library", async function() {
     SqliteRest = require(__dirname + "/sqlite-crud.js");
   });
 
   it("can create an instance", async function() {
-    sqliteRest = new SqliteRest("test.sqlite", { readonly: false }, { trace: true });
+    sqliteCrud = new SqliteRest("test.sqlite", {
+      readonly: false
+    }, {
+      trace: true,
+      firewallFile: __dirname + "/test.fwl"
+    });
   });
 
-  it("can create test tables", async function() {
-    sqliteRest.exec("CREATE TABLE users ( id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR(255), age INTEGER );");
-    sqliteRest.createTable("users", "name VARCHAR(255), INTEGER age");
-    sqliteRest.createTable("groups", "name VARCHAR(255)");
-    sqliteRest.createTable("permissions", "name VARCHAR(255)");
-    sqliteRest.createTable("sessions", "id_user INTEGER, token VARCHAR(100), FOREIGN KEY (id_user) REFERENCES users(id)");
+  it("can initialize auth tables and data", async function() {
+    await sqliteCrud.initializeAuth();
   });
 
   it("can commit all simple CRUD operations", async function() {
     // Create (Insert)
-    const insertResult = sqliteRest.insert("users", { name: "Juan", age: 30 });
+    const insertResult = sqliteCrud.insert("users", { name: "Juan", email: "Juan@correos.org", password: "123456" });
     chai.expect(insertResult.changes).to.equal(1);
-    sqliteRest.insert("users", { name: "Pepe", age: 31 });
-    sqliteRest.insert("users", { name: "Tomás", age: 32 });
-    sqliteRest.insert("users", { name: "Orlando", age: 33 });
-    sqliteRest.insert("users", { name: "Kentucky", age: 34 });
+    sqliteCrud.insert("users", { name: "Pepe", email: "Pepe@correos.org", password: "123456" });
+    sqliteCrud.insert("users", { name: "Tomás", email: "Tomas@correos.org", password: "123456" });
+    sqliteCrud.insert("users", { name: "Orlando", email: "Orlando@correos.org", password: "123456" });
+    sqliteCrud.insert("users", { name: "Kentucky", email: "Kentucky@correos.org", password: "123456" });
   
     // Read (Select)
-    const users = sqliteRest.select("users", [["age", "=", 30]], [["name", "ASC"]]);
+    const users = sqliteCrud.select("users", [["name", "=", "Juan"]], [["name", "ASC"]]);
     chai.expect(users.length).to.equal(1);
     chai.expect(users[0].name).to.equal("Juan");
   
     // Update
-    const updateResult = sqliteRest.update("users", users[0].id, { name: "Juan Actualizado" });
+    const updateResult = sqliteCrud.update("users", users[0].id, { name: "Juan Actualizado" });
     chai.expect(updateResult.changes).to.equal(1);
   
     // Verify Update
-    const updatedUser = sqliteRest.select("users", [["id", "=", users[0].id]]);
+    const updatedUser = sqliteCrud.select("users", [["id", "=", users[0].id]]);
     chai.expect(updatedUser[0].name).to.equal("Juan Actualizado");
   
     // Delete
-    const deleteResult = sqliteRest.delete("users", users[0].id);
+    const deleteResult = sqliteCrud.delete("users", users[0].id);
     chai.expect(deleteResult.changes).to.equal(1);
   
     // Verify Delete
-    const remainingUsers = sqliteRest.select("users");
-    chai.expect(remainingUsers.length).to.equal(4);
+    const remainingUsers = sqliteCrud.select("users");
+    chai.expect(remainingUsers.length).to.equal(5);
+  });
+
+  it("can use login on valid data", async function() {
+    const session = sqliteCrud.login("admin", "admin");
+    console.log(session);
+    chai.expect(session.token.length).to.equal(100);
+    commonMemory.session = session;
+  });
+
+  it("can get schema", async function() {
+    const schema = sqliteCrud.getSchema();
+    chai.expect(typeof schema).to.equal("object");
+  });
+
+  it("can use authenticate method", async function() {
+    const authenticationData = sqliteCrud.authenticate(commonMemory.session.token);
+    console.log(authenticationData);
+  });
+
+  it("can use Authorized API methods", async function() {
+    const credentials = sqliteCrud.authenticate(commonMemory.session.token);
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
   });
 
 });

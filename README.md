@@ -23,22 +23,71 @@ const sqliteCrud = new SqliteCrud("file.sqlite", {
 
 ## API
 
-La API de esta clase ofrece estos métodos:
+La API devuelve una clase. La clase tiene 2 capas unidas por herencia: la `API CRUD` y la `API AUTH`. Todos los métodos están al mismo nivel en la clase, pero se implementan en 2 herencias, para diferenciar APIs.
 
-- sanitize(text)
-- sanitizeId(id)
-- sanitizeOperator(operator)
-- select(table, wheres, orders)
-- insert(table, value)
-- update(table, id, properties)
-- delete(table, id)
-- createTable(table, content)
-- createColumn(table, column, content)
-- dropTable(table)
-- dropColumn(table, column)
-- renameTable(table, newTable)
-- renameColumn(table, column, newColumn)
-- exec(sql)
+Primero, va la CRUD. Luego, se extiende la AUTH.
+
+La API CRUD de la clase ofrece:
+
+- `sanitize(text)`
+- `sanitizeId(id)`
+- `sanitizeOperator(operator)`
+- `getSchema()`
+- `select(table, wheres, orders)`
+- `insert(table, value)`
+- `update(table, id, properties)`
+- `delete(table, id)`
+- `createTable(table, content)`
+- `createColumn(table, column, content)`
+- `dropTable(table)`
+- `dropColumn(table, column)`
+- `renameTable(table, newTable)`
+- `renameColumn(table, column, newColumn)`
+- `exec(sql)`
+- `runStatement(statement, parameters = [])`
+- `getAllResults(sql)`
+- `trace(traceText, others = [])`
+- `notifyError(error, origin = false, propagate = false)`
+- `getSchema()`
+
+La API AUTH de la clase ofrece:
+
+- `initializeAuth()`
+- `login(name, password)`
+- `logout(token)`
+- `authenticate(token):SqliteCredentials`
+- `authorized.select(sqliteCredentials, ...args)`
+- `authorized.insert(sqliteCredentials, ...args)`
+- `authorized.update(sqliteCredentials, ...args)`
+- `authorized.delete(sqliteCredentials, ...args)`
+- `authorized.createTable(sqliteCredentials, ...args)`
+- `authorized.createColumn(sqliteCredentials, ...args)`
+- `authorized.renameTable(sqliteCredentials, ...args)`
+- `authorized.renameColumn(sqliteCredentials, ...args)`
+- `authorized.deleteTable(sqliteCredentials, ...args)`
+- `authorized.deleteColumn(sqliteCredentials, ...args)`
+
+### Detalles de la API
+
+#### La propiedad authorized y el firewall
+
+La propiedad `authorized` tiene los métodos de alto nivel de la API CRUD/AUTH, pero forzando autorización mediante un objeto de tipo `SqliteCredentials`.
+
+El firewall puede crearse al: 
+
+```js
+new SqliteCrud("db.sqlite", {}, {
+  firewallFile: "security.fwl"
+});
+```
+
+Cuando se haga el `initializeAuth`, se llamará a la lectura y carga del fichero.
+
+La API del firewall viene dada por la librería [sistema-lenguaje-firewall](https://github.com/allnulled/sistema-lenguaje-firewall/tree/main).
+
+
+
+#### El wheres y orders del select
 
 Los que cabe explicar, que no se sobreentienden, serían el `where` y el `orders`.
 
@@ -74,14 +123,16 @@ Este es el test. Puede que no cubra todos los métodos.
 
 ```js
 let chai;
-let SqliteCrud, sqliteCrud;
+let SqliteRest, sqliteCrud;
 
 const resetDatabaseFile = async function() {
   require("fs").unlinkSync(__dirname + "/test.sqlite");
   require("fs").writeFileSync(__dirname + "/test.sqlite", "", "utf8");
 };
 
-describe("SqliteCrud API Test", function() {
+const commonMemory = {};
+
+describe("SqliteRest API Test", function() {
 
   before(async () => {
     chai = await import("chai");
@@ -89,35 +140,36 @@ describe("SqliteCrud API Test", function() {
 
   before(resetDatabaseFile);
   
-  after(resetDatabaseFile);
+  // after(resetDatabaseFile);
   
   it("can load the library", async function() {
-    SqliteCrud = require(__dirname + "/sqlite-crud.js");
+    SqliteRest = require(__dirname + "/sqlite-crud.js");
   });
 
   it("can create an instance", async function() {
-    sqliteCrud = new SqliteCrud("test.sqlite", { readonly: false }, { trace: true });
+    sqliteCrud = new SqliteRest("test.sqlite", {
+      readonly: false
+    }, {
+      trace: true,
+      firewallFile: __dirname + "/test.fwl"
+    });
   });
 
-  it("can create test tables", async function() {
-    sqliteCrud.exec("CREATE TABLE users ( id INTEGER PRIMARY KEY AUTOINCREMENT, name VARCHAR(255), age INTEGER );");
-    sqliteCrud.createTable("users", "name VARCHAR(255), INTEGER age");
-    sqliteCrud.createTable("groups", "name VARCHAR(255)");
-    sqliteCrud.createTable("permissions", "name VARCHAR(255)");
-    sqliteCrud.createTable("sessions", "id_user INTEGER, token VARCHAR(100), FOREIGN KEY (id_user) REFERENCES users(id)");
+  it("can initialize auth tables and data", async function() {
+    await sqliteCrud.initializeAuth();
   });
 
   it("can commit all simple CRUD operations", async function() {
     // Create (Insert)
-    const insertResult = sqliteCrud.insert("users", { name: "Juan", age: 30 });
+    const insertResult = sqliteCrud.insert("users", { name: "Juan", email: "Juan@correos.org", password: "123456" });
     chai.expect(insertResult.changes).to.equal(1);
-    sqliteCrud.insert("users", { name: "Pepe", age: 31 });
-    sqliteCrud.insert("users", { name: "Tomás", age: 32 });
-    sqliteCrud.insert("users", { name: "Hipólito", age: 33 });
-    sqliteCrud.insert("users", { name: "Lucía", age: 34 });
+    sqliteCrud.insert("users", { name: "Pepe", email: "Pepe@correos.org", password: "123456" });
+    sqliteCrud.insert("users", { name: "Tomás", email: "Tomas@correos.org", password: "123456" });
+    sqliteCrud.insert("users", { name: "Orlando", email: "Orlando@correos.org", password: "123456" });
+    sqliteCrud.insert("users", { name: "Kentucky", email: "Kentucky@correos.org", password: "123456" });
   
     // Read (Select)
-    const users = sqliteCrud.select("users", [["age", "=", 30]], [["name", "ASC"]]);
+    const users = sqliteCrud.select("users", [["name", "=", "Juan"]], [["name", "ASC"]]);
     chai.expect(users.length).to.equal(1);
     chai.expect(users[0].name).to.equal("Juan");
   
@@ -135,7 +187,38 @@ describe("SqliteCrud API Test", function() {
   
     // Verify Delete
     const remainingUsers = sqliteCrud.select("users");
-    chai.expect(remainingUsers.length).to.equal(4);
+    chai.expect(remainingUsers.length).to.equal(5);
+  });
+
+  it("can use login on valid data", async function() {
+    const session = sqliteCrud.login("admin", "admin");
+    console.log(session);
+    chai.expect(session.token.length).to.equal(100);
+    commonMemory.session = session;
+  });
+
+  it("can get schema", async function() {
+    const schema = sqliteCrud.getSchema();
+    chai.expect(typeof schema).to.equal("object");
+  });
+
+  it("can use authenticate method", async function() {
+    const authenticationData = sqliteCrud.authenticate(commonMemory.session.token);
+    console.log(authenticationData);
+  });
+
+  it("can use Authorized API methods", async function() {
+    const credentials = sqliteCrud.authenticate(commonMemory.session.token);
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
+    await sqliteCrud.authorized.select(credentials, "users");
   });
 
 });

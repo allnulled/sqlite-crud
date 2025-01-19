@@ -6,11 +6,18 @@
   "scripts": {
     "test": "npx mocha --bail test.js"
   },
-  "keywords": ["sqlite", "sql", "crud", "better-sqlite3", "sqlite3"],
+  "keywords": [
+    "sqlite",
+    "sql",
+    "crud",
+    "better-sqlite3",
+    "sqlite3"
+  ],
   "author": "allnulled",
   "license": "WTFPL",
   "dependencies": {
-    "better-sqlite3": "^11.8.1"
+    "better-sqlite3": "^11.8.1",
+    "sistema-lenguaje-firewall": "^1.0.5"
   },
   "devDependencies": {
     "chai": "^5.1.2"

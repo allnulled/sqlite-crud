@@ -1,0 +1,8 @@
+on event { * } then {
+    anytime [[ console.log("Hi, we are in an event!" ) ]]
+}
+
+on event { crud.select } then {
+    anytime [[ console.log("Hi, we are in a SELECT event!" ) ]]
+    anytime [[ console.log(arguments[1].sqliteCrud.getSchema()) ]]
+}
